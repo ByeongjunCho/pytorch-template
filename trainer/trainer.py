@@ -3,14 +3,20 @@ import torch
 from torchvision.utils import make_grid
 from base import BaseTrainer
 from utils import inf_loop, MetricTracker
+import lightning as L
+from typing import Union
 
+
+# fabric 사용 가정
 
 class Trainer(BaseTrainer):
     """
     Trainer class
     """
     def __init__(self, model, criterion, metric_ftns, optimizer, config, device,
-                 data_loader, valid_data_loader=None, lr_scheduler=None, len_epoch=None):
+                 data_loader, valid_data_loader=None, lr_scheduler=None, len_epoch=None, 
+                 # new config
+                 fabric: L.Fabric=None, log_freq=1):
         super().__init__(model, criterion, metric_ftns, optimizer, config)
         self.config = config
         self.device = device
@@ -30,6 +36,25 @@ class Trainer(BaseTrainer):
         self.train_metrics = MetricTracker('loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer)
         self.valid_metrics = MetricTracker('loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer)
 
+        self._fabric(fabric)
+        
+        # new param control
+        self.log_freq = log_freq
+        
+    def _fabric(self, fabric):
+        """
+        check Lightning.fabric and if it is, Convert model, optimizer, dataloader to fabric class
+        Args:
+            fabric (_type_): Lightning.fabric, Check this params that is Lightning.fabric
+        """
+        
+        self.fabric = fabric
+        self.fabric.launch()
+        
+        self.model, self.optimizer = self.fabric.setup(self.model, self.optimizer)
+        self.data_loader = self.fabric(self.data_loader)
+        self.valid_data_loader = self.fabric(self.valid_data_loader)
+
     def _train_epoch(self, epoch):
         """
         Training logic for an epoch
@@ -40,14 +65,22 @@ class Trainer(BaseTrainer):
         self.model.train()
         self.train_metrics.reset()
         for batch_idx, (data, target) in enumerate(self.data_loader):
-            data, target = data.to(self.device), target.to(self.device)
-
+            
             self.optimizer.zero_grad()
             output = self.model(data)
             loss = self.criterion(output, target)
-            loss.backward()
+            self.fabric.backward(loss)
+                
             self.optimizer.step()
-
+            if self.lr_scheduler:
+                self.lr_scheduler.step()
+            
+            if batch_idx % self.log_freq == 0: # log 주기별로 
+                self.fabric.log("train_loss", loss)
+                # self.fabric.log("train_accuracy", acc)
+            
+            
+            # logging
             self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
             self.train_metrics.update('loss', loss.item())
             for met in self.metric_ftns:

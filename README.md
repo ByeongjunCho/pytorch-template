@@ -1,4 +1,4 @@
-# PyTorch Template Project
+# PyTorch (with fabric) Template Project
 PyTorch deep learning project made easy.
 
 <!-- @import "[TOC]" {cmd="toc" depthFrom=1 depthTo=6 orderedList=false} -->
@@ -47,6 +47,15 @@ PyTorch deep learning project made easy.
   * `BaseTrainer` handles checkpoint saving/resuming, training process logging, and more.
   * `BaseDataLoader` handles batch generation, data shuffling, and validation data splitting.
   * `BaseModel` provides basic model summary.
+* pytorch fabric module 에 맞춰 재작성
+  * trainer.py 
+    - fabric 에 맞춰 1 epoch train, 1 epoch valid 수정  
+  - TODO list
+    - fabric train
+    - fabric valid
+    - fabric save/load
+    - fabric logging
+    - fabric callback(추후 진행?)
 
 ## Folder Structure
   ```
