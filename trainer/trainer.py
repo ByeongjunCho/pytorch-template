@@ -54,7 +54,7 @@ class Trainer(BaseTrainer):
         self.model, self.optimizer = self.fabric.setup(self.model, self.optimizer)
         self.data_loader = self.fabric(self.data_loader)
         self.valid_data_loader = self.fabric(self.valid_data_loader)
-
+        
     def _train_epoch(self, epoch):
         """
         Training logic for an epoch
@@ -79,7 +79,7 @@ class Trainer(BaseTrainer):
                 self.fabric.log("train_loss", loss)
                 # self.fabric.log("train_accuracy", acc)
             
-            
+            # fabric 에서 logging 은 자동으로 수행되므로 필요 없음
             # logging
             self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
             self.train_metrics.update('loss', loss.item())
@@ -97,6 +97,8 @@ class Trainer(BaseTrainer):
                 break
         log = self.train_metrics.result()
 
+        
+        
         if self.do_validation:
             val_log = self._valid_epoch(epoch)
             log.update(**{'val_'+k : v for k, v in val_log.items()})
